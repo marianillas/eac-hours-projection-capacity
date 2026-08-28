@@ -78,4 +78,32 @@ export async function getClientFolders(): Promise<ClickUpClientFolder[]> {
   return data.folders.map((f) => ({ id: f.id, name: f.name }));
 }
 
+export type ClickUpList = { id: string; name: string };
+
+/** The lists inside a client folder — each list is one "project" in our budget model. */
+export async function getListsForFolder(folderId: string): Promise<ClickUpList[]> {
+  const data = await clickupGet<{ lists: ClickUpList[] }>(`/folder/${folderId}/list`, {
+    archived: "false",
+  });
+  return data.lists;
+}
+
+export type ClickUpProjectTask = { id: string; name: string };
+
+/** Top-level tasks in a list (no subtasks — see plan notes on why). */
+export async function getTasksForList(listId: string): Promise<ClickUpProjectTask[]> {
+  const tasks: ClickUpProjectTask[] = [];
+  let page = 0;
+  for (;;) {
+    const data = await clickupGet<{ tasks: ClickUpProjectTask[]; last_page: boolean }>(
+      `/list/${listId}/task`,
+      { archived: "false", include_closed: "true", page: String(page) },
+    );
+    tasks.push(...data.tasks);
+    if (data.last_page) break;
+    page += 1;
+  }
+  return tasks;
+}
+
 export type { ClickUpTimeEntry };

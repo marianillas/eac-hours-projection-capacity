@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getPool } from "./db";
-import { runSync } from "./sync";
+import { runSync, syncClientProjects } from "./sync";
 import { rollingMonths } from "./data";
 
 function revalidateAllTabs() {
@@ -63,6 +63,15 @@ export async function removeTeamMember(formData: FormData) {
 function revalidateClient(folderId: string) {
   revalidatePath(`/clients/${folderId}`);
   revalidateAllTabs();
+}
+
+export async function syncClientProjectsFromClickUp(folderId: string) {
+  const result = await syncClientProjects(folderId);
+  console.log(
+    `[project sync] ${folderId}: ${result.listsSynced} lists, ${result.tasksSynced} tasks`,
+  );
+  revalidateClient(folderId);
+  return result;
 }
 
 export async function setProjectActive(formData: FormData) {

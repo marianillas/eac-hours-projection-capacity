@@ -11,6 +11,7 @@ import {
   setProjectActive,
 } from "@/lib/actions";
 import { ClientSidebar } from "../client-sidebar";
+import { SyncProjectsButton } from "../sync-projects-button";
 
 export const dynamic = "force-dynamic";
 
@@ -46,14 +47,17 @@ export default async function ClientPage({
               hourly rate.
             </p>
           </div>
-          {inactiveCount > 0 && (
-            <a
-              href={showInactive ? `/clients/${folderId}` : `/clients/${folderId}?showInactiveProjects=1`}
-              className="whitespace-nowrap text-xs text-neutral-500 hover:underline"
-            >
-              {showInactive ? "Hide inactive projects" : `Show inactive projects (${inactiveCount})`}
-            </a>
-          )}
+          <div className="flex items-start gap-4">
+            {inactiveCount > 0 && (
+              <a
+                href={showInactive ? `/clients/${folderId}` : `/clients/${folderId}?showInactiveProjects=1`}
+                className="whitespace-nowrap text-xs text-neutral-500 hover:underline self-center"
+              >
+                {showInactive ? "Hide inactive projects" : `Show inactive projects (${inactiveCount})`}
+              </a>
+            )}
+            <SyncProjectsButton folderId={folderId} />
+          </div>
         </div>
 
         {allProjects.length === 0 && (
@@ -79,12 +83,25 @@ export default async function ClientPage({
                 <div className="flex flex-wrap items-end gap-3">
                   <div className="flex flex-col gap-1">
                     <label className="text-xs text-neutral-500">Project</label>
-                    <input
-                      form={`project-${project.id}`}
-                      name="name"
-                      defaultValue={project.name}
-                      className="rounded border border-neutral-300 px-2 py-1 text-sm font-medium min-w-48"
-                    />
+                    {project.clickup_list_id ? (
+                      <div className="flex items-center gap-1.5 px-2 py-1">
+                        <span className="text-sm font-medium">{project.name}</span>
+                        <span
+                          title="Synced from ClickUp — rename the list in ClickUp, then re-sync"
+                          className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700"
+                        >
+                          ClickUp
+                        </span>
+                        <input type="hidden" form={`project-${project.id}`} name="name" value={project.name} />
+                      </div>
+                    ) : (
+                      <input
+                        form={`project-${project.id}`}
+                        name="name"
+                        defaultValue={project.name}
+                        className="rounded border border-neutral-300 px-2 py-1 text-sm font-medium min-w-48"
+                      />
+                    )}
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-xs text-neutral-500">Hourly Rate</label>
@@ -171,12 +188,25 @@ export default async function ClientPage({
                             />
                           </td>
                           <td className="px-3 py-1.5">
-                            <input
-                              form={`task-${task.id}`}
-                              name="name"
-                              defaultValue={task.name}
-                              className="w-full min-w-40 rounded border border-transparent px-1 py-0.5 hover:border-neutral-200 focus:border-neutral-300 focus:outline-none"
-                            />
+                            {task.clickup_task_id ? (
+                              <div className="flex items-center gap-1.5">
+                                <span>{task.name}</span>
+                                <span
+                                  title="Synced from ClickUp — rename the task in ClickUp, then re-sync"
+                                  className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700"
+                                >
+                                  ClickUp
+                                </span>
+                                <input type="hidden" form={`task-${task.id}`} name="name" value={task.name} />
+                              </div>
+                            ) : (
+                              <input
+                                form={`task-${task.id}`}
+                                name="name"
+                                defaultValue={task.name}
+                                className="w-full min-w-40 rounded border border-transparent px-1 py-0.5 hover:border-neutral-200 focus:border-neutral-300 focus:outline-none"
+                              />
+                            )}
                           </td>
                           {months.map((m) => (
                             <td key={m} className="px-3 py-1.5">

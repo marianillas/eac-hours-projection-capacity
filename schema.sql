@@ -32,10 +32,18 @@ CREATE TABLE IF NOT EXISTS client_projects (
   active BOOLEAN NOT NULL DEFAULT true,
   notes TEXT NOT NULL DEFAULT '',
   sort_order INTEGER NOT NULL DEFAULT 0,
+  clickup_list_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 ALTER TABLE client_projects ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE client_projects ADD COLUMN IF NOT EXISTS clickup_list_id TEXT;
+
+-- A project auto-pulled from a ClickUp list (project = list, per the client) must be
+-- unique per list, so re-syncing updates it instead of creating a duplicate. Manually
+-- added projects have clickup_list_id = NULL and are exempt from this constraint.
+CREATE UNIQUE INDEX IF NOT EXISTS client_projects_clickup_list_id_idx
+  ON client_projects (clickup_list_id) WHERE clickup_list_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS project_tasks (
   id SERIAL PRIMARY KEY,
@@ -43,8 +51,14 @@ CREATE TABLE IF NOT EXISTS project_tasks (
   task_number TEXT NOT NULL DEFAULT '',
   name TEXT NOT NULL,
   sort_order INTEGER NOT NULL DEFAULT 0,
+  clickup_task_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS clickup_task_id TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS project_tasks_clickup_task_id_idx
+  ON project_tasks (clickup_task_id) WHERE clickup_task_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS task_hours_monthly (
   task_id INTEGER NOT NULL REFERENCES project_tasks(id) ON DELETE CASCADE,

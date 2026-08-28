@@ -9,7 +9,9 @@ dashboard. Five tabs:
 - **LIP** — LIP World hours broken down by folder (LIP Core vs. LIP Overhead)
 - **Clients** — pick a client folder, manage that client's projects and per-task budgets:
   hours entered per task per month, dollars computed from the project's hourly rate, plus
-  freeform notes
+  freeform notes. Projects and tasks can be pulled straight from ClickUp ("Sync projects
+  from ClickUp" on each client's page — a project is a ClickUp list, a task is a ClickUp
+  task) or added manually for line items with no ClickUp equivalent
 - **Settings** — team roster
 
 ## Setup

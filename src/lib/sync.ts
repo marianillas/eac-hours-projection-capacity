@@ -1,4 +1,4 @@
-import { getTimeEntries, getClientFolders } from "./clickup";
+import { getTimeEntries, getClientFolders, getListsForFolder, getTasksForList } from "./clickup";
 import { getPool } from "./db";
 import {
   classifyLocation,
@@ -161,4 +161,56 @@ export async function runSync(): Promise<SyncResult> {
     warnings,
     finishedAt: new Date().toISOString(),
   };
+}
+
+export type ClientProjectSyncResult = { listsSynced: number; tasksSynced: number };
+
+/**
+ * Pulls a client's ClickUp lists in as "projects" and each list's tasks in as "tasks".
+ * Only ever inserts/updates by (clickup_list_id) / (clickup_task_id) — never deletes, so
+ * a sync can't wipe out budget hours already entered against a task that later
+ * disappears from ClickUp. Only the name is kept in sync; hourly_rate, notes, active,
+ * task_number, and all budgeted hours are user-owned and untouched here.
+ */
+export async function syncClientProjects(clientFolderId: string): Promise<ClientProjectSyncResult> {
+  const lists = await getListsForFolder(clientFolderId);
+  let tasksSynced = 0;
+
+  const client = await getPool().connect();
+  try {
+    await client.query("BEGIN");
+
+    for (const list of lists) {
+      const { rows } = await client.query<{ id: number }>(
+        `INSERT INTO client_projects (client_folder_id, name, clickup_list_id)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (clickup_list_id) WHERE clickup_list_id IS NOT NULL
+         DO UPDATE SET name = EXCLUDED.name
+         RETURNING id`,
+        [clientFolderId, list.name, list.id],
+      );
+      const projectId = rows[0].id;
+
+      const tasks = await getTasksForList(list.id);
+      for (const task of tasks) {
+        await client.query(
+          `INSERT INTO project_tasks (project_id, name, clickup_task_id)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (clickup_task_id) WHERE clickup_task_id IS NOT NULL
+           DO UPDATE SET name = EXCLUDED.name`,
+          [projectId, task.name, task.id],
+        );
+        tasksSynced += 1;
+      }
+    }
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  return { listsSynced: lists.length, tasksSynced };
 }

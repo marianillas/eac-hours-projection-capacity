@@ -29,6 +29,7 @@ export type ProjectTask = {
   task_number: string;
   name: string;
   sort_order: number;
+  clickup_task_id: string | null;
   hoursByMonth: Record<string, number>; // month -> hours
 };
 
@@ -40,6 +41,7 @@ export type ClientProject = {
   active: boolean;
   notes: string;
   sort_order: number;
+  clickup_list_id: string | null;
   tasks: ProjectTask[];
 };
 
@@ -61,14 +63,21 @@ export async function getClickupHoursMonthly(): Promise<ClickupHourRow[]> {
 
 export async function getClientProjects(folderId: string): Promise<ClientProject[]> {
   const projects = await query<Omit<ClientProject, "tasks">>(
-    "SELECT id, client_folder_id, name, hourly_rate, active, notes, sort_order FROM client_projects WHERE client_folder_id = $1 ORDER BY sort_order, id",
+    "SELECT id, client_folder_id, name, hourly_rate, active, notes, sort_order, clickup_list_id FROM client_projects WHERE client_folder_id = $1 ORDER BY sort_order, id",
     [folderId],
   );
   if (projects.length === 0) return [];
 
   const projectIds = projects.map((p) => p.id);
-  const tasks = await query<{ id: number; project_id: number; task_number: string; name: string; sort_order: number }>(
-    "SELECT id, project_id, task_number, name, sort_order FROM project_tasks WHERE project_id = ANY($1) ORDER BY sort_order, id",
+  const tasks = await query<{
+    id: number;
+    project_id: number;
+    task_number: string;
+    name: string;
+    sort_order: number;
+    clickup_task_id: string | null;
+  }>(
+    "SELECT id, project_id, task_number, name, sort_order, clickup_task_id FROM project_tasks WHERE project_id = ANY($1) ORDER BY sort_order, id",
     [projectIds],
   );
 
