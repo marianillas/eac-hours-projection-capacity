@@ -13,8 +13,23 @@ export type ClientBudget = {
   id: number;
   month: string; // ISO date
   client_name: string;
+  client_folder_id: string | null;
   hours: string;
   status: "confirmed" | "tba";
+};
+
+export type ClientFolder = {
+  folder_id: string;
+  name: string;
+};
+
+export type ClickupHourRow = {
+  month: string;
+  category: string;
+  subcategory_id: string;
+  subcategory_label: string;
+  hours: string;
+  synced_at: string;
 };
 
 export async function getTeamMembers(): Promise<TeamMember[]> {
@@ -25,15 +40,17 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
 
 export async function getClientBudgets(): Promise<ClientBudget[]> {
   return query<ClientBudget>(
-    "SELECT id, month::text, client_name, hours, status FROM client_budgets ORDER BY month, client_name",
+    "SELECT id, month::text, client_name, client_folder_id, hours, status FROM client_budgets ORDER BY month, client_name",
   );
 }
 
-export async function getClickupHoursMonthly(): Promise<
-  { month: string; category: string; hours: string; synced_at: string }[]
-> {
-  return query<{ month: string; category: string; hours: string; synced_at: string }>(
-    "SELECT month::text, category, hours, synced_at::text FROM clickup_hours_monthly ORDER BY month",
+export async function getClientFolders(): Promise<ClientFolder[]> {
+  return query<ClientFolder>("SELECT folder_id, name FROM client_folders ORDER BY name");
+}
+
+export async function getClickupHoursMonthly(): Promise<ClickupHourRow[]> {
+  return query<ClickupHourRow>(
+    "SELECT month::text, category, subcategory_id, subcategory_label, hours, synced_at::text FROM clickup_hours_monthly ORDER BY month",
   );
 }
 
@@ -68,7 +85,7 @@ export function statusFor(variance: number, capacity: number): MonthRow["status"
 export function buildMonthRows(
   months: string[], // ISO dates, first of month
   clientBudgets: ClientBudget[],
-  clickupHours: { month: string; category: string; hours: string }[],
+  clickupHours: ClickupHourRow[],
   capacity: number,
 ): MonthRow[] {
   return months.map((month) => {
@@ -115,4 +132,40 @@ export function rollingMonths(centerOffset: { back: number; forward: number }): 
     months.push(d.toISOString().slice(0, 10));
   }
   return months;
+}
+
+/** One row per subcategory (space/folder/client) within a category, months as columns. */
+export type BreakdownRow = {
+  subcategoryId: string;
+  label: string;
+  hoursByMonth: Record<string, number>; // month -> hours (0 if none that month)
+};
+
+export function buildBreakdown(
+  months: string[],
+  clickupHours: ClickupHourRow[],
+  categories: string[],
+  // Known space/folder IDs to always show (with 0 hours) even if nothing was logged this
+  // window — otherwise a space with no recent activity would just silently disappear.
+  knownSubcategories: Record<string, string> = {},
+): BreakdownRow[] {
+  const bySubcategory = new Map<string, BreakdownRow>();
+
+  const ensure = (id: string, label: string) => {
+    if (!bySubcategory.has(id)) {
+      bySubcategory.set(id, { subcategoryId: id, label, hoursByMonth: Object.fromEntries(months.map((m) => [m, 0])) });
+    }
+    return bySubcategory.get(id)!;
+  };
+
+  for (const [id, label] of Object.entries(knownSubcategories)) ensure(id, label);
+
+  for (const row of clickupHours) {
+    if (!categories.includes(row.category)) continue;
+    const entry = ensure(row.subcategory_id, row.subcategory_label);
+    if (months.includes(row.month)) {
+      entry.hoursByMonth[row.month] = (entry.hoursByMonth[row.month] ?? 0) + Number(row.hours);
+    }
+  }
+  return Array.from(bySubcategory.values()).sort((a, b) => a.label.localeCompare(b.label));
 }

@@ -12,11 +12,17 @@ export type Category = "eac_core" | "overhead" | "lip_core" | "lip_overhead";
 
 export const LIP_WORLD_SPACE_ID = "90163342800";
 
+// EAC Core is two spaces: client folders live under Projects; Business Development has no
+// folders of its own (its hours are bucketed as a single pseudo-client, see sync.ts).
+export const PROJECTS_SPACE_ID = "90162180301";
+export const BUSINESS_DEVELOPMENT_SPACE_ID = "90165982599";
+export const BUSINESS_DEVELOPMENT_SUBCATEGORY_ID = "business-development";
+
 // Top-level spaces. LIP World is classified per-folder instead (see LIP_FOLDER_CLASSIFICATION)
 // so it has no entry here.
 export const SPACE_CLASSIFICATION: Record<string, Category> = {
-  "90162180301": "eac_core", // Projects (all client folders under here)
-  "90165982599": "eac_core", // Business Development
+  [PROJECTS_SPACE_ID]: "eac_core", // Projects (all client folders under here)
+  [BUSINESS_DEVELOPMENT_SPACE_ID]: "eac_core", // Business Development
   "90162212548": "overhead", // Finance and Budgeting
   "90162499248": "overhead", // EAC Core Materials
   "90162824231": "overhead", // Contacts
@@ -24,6 +30,17 @@ export const SPACE_CLASSIFICATION: Record<string, Category> = {
   "90166865908": "overhead", // Operations
   "90162815262": "overhead", // Marketing
   "90162252295": "overhead", // EAC
+};
+
+// Human names for the overhead spaces above, for the Admin tab's per-space breakdown.
+export const OVERHEAD_SPACE_LABEL: Record<string, string> = {
+  "90162212548": "Finance and Budgeting",
+  "90162499248": "EAC Core Materials",
+  "90162824231": "Contacts",
+  "90165908570": "Social Media",
+  "90166865908": "Operations",
+  "90162815262": "Marketing",
+  "90162252295": "EAC",
 };
 
 // Folders within LIP World (space id: LIP_WORLD_SPACE_ID). Matches the eac-lip-utilization
@@ -38,6 +55,19 @@ export const LIP_FOLDER_CLASSIFICATION: Record<string, Category> = {
   "90167338165": "lip_overhead", // LIP Financials
   "90167989962": "lip_overhead", // LIP Social Media
   "90167996940": "lip_overhead", // LIP Marketing
+};
+
+// Human names for the LIP folders above, for the LIP tab's per-folder breakdown.
+export const LIP_FOLDER_LABEL: Record<string, string> = {
+  "90167311476": "LIP - Partners",
+  "90165552383": "LIP Prospects",
+  "90168739580": "LIP Event (SoNV)",
+  "90168509808": "LIP Events (NoNV)",
+  "90168739563": "LIP Event (Networking)",
+  "90167311485": "LIP - Admin",
+  "90167338165": "LIP Financials",
+  "90167989962": "LIP Social Media",
+  "90167996940": "LIP Marketing",
 };
 
 /**

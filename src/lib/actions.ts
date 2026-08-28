@@ -4,12 +4,20 @@ import { revalidatePath } from "next/cache";
 import { getPool } from "./db";
 import { runSync } from "./sync";
 
+function revalidateAllTabs() {
+  revalidatePath("/");
+  revalidatePath("/admin");
+  revalidatePath("/lip");
+  revalidatePath("/clients", "layout");
+}
+
 export async function triggerSync() {
   const result = await runSync();
   console.log(
-    `[sync] ${result.entriesProcessed} entries processed, ${result.unclassifiedEntries} unclassified, ${result.warnings.length} warning(s)`,
+    `[sync] ${result.entriesProcessed} entries processed, ${result.unclassifiedEntries} unclassified, ${result.clientFoldersSynced} client folders, ${result.warnings.length} warning(s)`,
   );
-  revalidatePath("/");
+  revalidateAllTabs();
+  revalidatePath("/settings");
   return result;
 }
 
@@ -24,7 +32,7 @@ export async function addTeamMember(formData: FormData) {
     [name, role, hoursPerWeek],
   );
   revalidatePath("/settings");
-  revalidatePath("/");
+  revalidateAllTabs();
 }
 
 export async function updateTeamMember(formData: FormData) {
@@ -40,7 +48,7 @@ export async function updateTeamMember(formData: FormData) {
     [name, role, hoursPerWeek, active, id],
   );
   revalidatePath("/settings");
-  revalidatePath("/");
+  revalidateAllTabs();
 }
 
 export async function removeTeamMember(formData: FormData) {
@@ -48,25 +56,32 @@ export async function removeTeamMember(formData: FormData) {
   if (!id) return;
   await getPool().query("DELETE FROM team_members WHERE id = $1", [id]);
   revalidatePath("/settings");
-  revalidatePath("/");
+  revalidateAllTabs();
 }
 
 export async function addClientBudget(formData: FormData) {
   const monthInput = String(formData.get("month") ?? "");
-  const clientName = String(formData.get("client_name") ?? "").trim();
+  const clientFolderId = String(formData.get("client_folder_id") ?? "").trim();
   const hours = Number(formData.get("hours") ?? 0);
   const status = String(formData.get("status") ?? "confirmed");
-  if (!monthInput || !clientName) return;
+  if (!monthInput || !clientFolderId) return;
 
   // Normalize to the 1st of the month regardless of which day the date picker returns.
   const month = `${monthInput.slice(0, 7)}-01`;
 
-  await getPool().query(
-    "INSERT INTO client_budgets (month, client_name, hours, status) VALUES ($1, $2, $3, $4)",
-    [month, clientName, hours, status],
+  const pool = getPool();
+  const { rows } = await pool.query<{ name: string }>(
+    "SELECT name FROM client_folders WHERE folder_id = $1",
+    [clientFolderId],
+  );
+  const clientName = rows[0]?.name ?? clientFolderId;
+
+  await pool.query(
+    "INSERT INTO client_budgets (month, client_name, client_folder_id, hours, status) VALUES ($1, $2, $3, $4, $5)",
+    [month, clientName, clientFolderId, hours, status],
   );
   revalidatePath("/settings");
-  revalidatePath("/");
+  revalidateAllTabs();
 }
 
 export async function removeClientBudget(formData: FormData) {
@@ -74,5 +89,5 @@ export async function removeClientBudget(formData: FormData) {
   if (!id) return;
   await getPool().query("DELETE FROM client_budgets WHERE id = $1", [id]);
   revalidatePath("/settings");
-  revalidatePath("/");
+  revalidateAllTabs();
 }

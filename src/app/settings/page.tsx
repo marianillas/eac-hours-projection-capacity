@@ -1,4 +1,5 @@
-import { getTeamMembers, getClientBudgets } from "@/lib/data";
+import { getTeamMembers, getClientBudgets, getClientFolders } from "@/lib/data";
+import { formatMonth } from "@/lib/format";
 import {
   addTeamMember,
   updateTeamMember,
@@ -10,17 +11,12 @@ import {
 // Reads live DB state on every request; nothing here is safe to prerender at build time.
 export const dynamic = "force-dynamic";
 
-function formatMonth(iso: string): string {
-  const [year, month] = iso.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-US", {
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
-
 export default async function SettingsPage() {
-  const [members, budgets] = await Promise.all([getTeamMembers(), getClientBudgets()]);
+  const [members, budgets, clientFolders] = await Promise.all([
+    getTeamMembers(),
+    getClientBudgets(),
+    getClientFolders(),
+  ]);
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8 space-y-10">
@@ -207,11 +203,22 @@ export default async function SettingsPage() {
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-neutral-500">Client</label>
-            <input
-              name="client_name"
+            <select
+              name="client_folder_id"
               required
-              className="rounded border border-neutral-300 px-2 py-1 text-sm"
-            />
+              disabled={clientFolders.length === 0}
+              defaultValue=""
+              className="rounded border border-neutral-300 px-2 py-1 text-sm min-w-40"
+            >
+              <option value="" disabled>
+                {clientFolders.length === 0 ? "Sync ClickUp first" : "Select a client"}
+              </option>
+              {clientFolders.map((c) => (
+                <option key={c.folder_id} value={c.folder_id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-neutral-500">Hours</label>
@@ -232,7 +239,8 @@ export default async function SettingsPage() {
           </div>
           <button
             type="submit"
-            className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700"
+            disabled={clientFolders.length === 0}
+            className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50"
           >
             Add budget row
           </button>

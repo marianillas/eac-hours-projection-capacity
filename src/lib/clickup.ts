@@ -1,4 +1,4 @@
-import { WORKSPACE_ID } from "./classification";
+import { WORKSPACE_ID, PROJECTS_SPACE_ID } from "./classification";
 
 const API_BASE = "https://api.clickup.com/api/v2";
 
@@ -66,6 +66,16 @@ export async function getTimeEntries(startMs: number, endMs: number): Promise<Cl
     end_date: String(endMs),
   });
   return data.data;
+}
+
+export type ClickUpClientFolder = { id: string; name: string };
+
+/** The client folders under the Projects space — each one is a client's own project. */
+export async function getClientFolders(): Promise<ClickUpClientFolder[]> {
+  const data = await clickupGet<{ folders: ClickUpClientFolder[] }>(`/space/${PROJECTS_SPACE_ID}/folder`, {
+    archived: "false",
+  });
+  return data.folders.map((f) => ({ id: f.id, name: f.name }));
 }
 
 export type { ClickUpTimeEntry };

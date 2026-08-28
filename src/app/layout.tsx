@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
 import "./globals.css";
+import { NavLinks } from "./nav-links";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,14 +28,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <header className="border-b border-neutral-200 bg-white">
           <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
             <span className="font-semibold">Hours Projection &amp; Capacity</span>
-            <nav className="flex gap-4 text-sm">
-              <Link href="/" className="hover:underline">
-                At a Glance
-              </Link>
-              <Link href="/settings" className="hover:underline">
-                Settings
-              </Link>
-            </nav>
+            <NavLinks />
           </div>
         </header>
         <main className="flex-1">{children}</main>

@@ -7,23 +7,11 @@ import {
   rollingMonths,
   type MonthRow,
 } from "@/lib/data";
+import { formatMonth, formatHours } from "@/lib/format";
 import { SyncButton } from "./sync-button";
 
 // Reads live DB state on every request; nothing here is safe to prerender at build time.
 export const dynamic = "force-dynamic";
-
-function formatMonth(iso: string): string {
-  const [year, month] = iso.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-US", {
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
-
-function formatHours(n: number): string {
-  return n.toLocaleString("en-US", { maximumFractionDigits: 1, minimumFractionDigits: 0 });
-}
 
 const STATUS_STYLE: Record<MonthRow["status"], string> = {
   OK: "bg-emerald-100 text-emerald-800",
@@ -31,7 +19,7 @@ const STATUS_STYLE: Record<MonthRow["status"], string> = {
   "OVER CAPACITY": "bg-red-100 text-red-800",
 };
 
-export default async function AtAGlancePage() {
+export default async function SummaryPage() {
   const [members, clientBudgets, clickupHours] = await Promise.all([
     getTeamMembers(),
     getClientBudgets(),
@@ -93,7 +81,7 @@ export default async function AtAGlancePage() {
     <div className="mx-auto max-w-6xl px-6 py-8 space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">At a Glance</h1>
+          <h1 className="text-xl font-semibold">Summary</h1>
           <p className="text-sm text-neutral-500">
             {lastSynced
               ? `Last synced ${new Date(lastSynced).toLocaleString()}`

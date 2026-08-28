@@ -1,8 +1,14 @@
 # eac-hours-projection-capacity
 
-Standalone "At a Glance" app: Client-Billable + Overhead + LIP hours vs. team capacity, by
-month, live from ClickUp. Own repo, own ClickUp integration, own Postgres database — not
-connected to the ClickUp kanban board app or the eac-lip-utilization dashboard.
+Standalone hours/capacity app, live from ClickUp. Own repo, own ClickUp integration, own
+Postgres database — not connected to the ClickUp kanban board app or the eac-lip-utilization
+dashboard. Five tabs:
+
+- **Summary** — Client-Billable + Overhead + LIP hours vs. team capacity, by month
+- **Admin** — Overhead hours broken down by org-level space (Finance, Marketing, etc.)
+- **LIP** — LIP World hours broken down by folder (LIP Core vs. LIP Overhead)
+- **Clients** — pick a client folder, see budgeted (blue) vs. actual ClickUp hours (black)
+- **Settings** — team roster and per-client monthly budgets
 
 ## Setup
 
@@ -47,6 +53,14 @@ task-hierarchy walk needed. Entries with no task at all (ad-hoc time tracking) o
 space/folder not in `classification.ts` are counted as unclassified and surfaced as sync
 warnings rather than silently dropped. Renaming a space or folder in ClickUp is safe and
 needs no code change; adding a new space/folder does need an entry in `classification.ts`.
+
+Each entry is also tagged with a **subcategory** — the specific client folder (for EAC Core),
+overhead space, or LIP folder it belongs to — stored in `clickup_hours_monthly` alongside the
+coarse category. The Summary tab just sums across subcategories per category (unchanged
+math); the Admin/LIP/Clients tabs use the subcategory breakdown directly. Client folder names
+are fetched live each sync (not hardcoded) into the `client_folders` table, since the client
+list changes far more often than the fixed set of overhead spaces or LIP folders — adding a
+new client in ClickUp needs no code change, just a re-sync.
 
 ## Deploying
 
