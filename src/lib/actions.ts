@@ -6,6 +6,9 @@ import { runSync } from "./sync";
 
 export async function triggerSync() {
   const result = await runSync();
+  console.log(
+    `[sync] ${result.entriesProcessed} entries processed, ${result.unclassifiedEntries} unclassified, ${result.warnings.length} warning(s)`,
+  );
   revalidatePath("/");
   return result;
 }

@@ -10,5 +10,8 @@ export async function GET(request: NextRequest) {
   }
 
   const result = await runSync();
+  console.log(
+    `[cron sync] ${result.entriesProcessed} entries processed, ${result.unclassifiedEntries} unclassified, ${result.warnings.length} warning(s)`,
+  );
   return NextResponse.json(result);
 }

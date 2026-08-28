@@ -38,12 +38,15 @@ connected to the ClickUp kanban board app or the eac-lip-utilization dashboard.
 ## How classification works
 
 `src/lib/classification.ts` maps ClickUp space/folder **IDs** (never names — see the file's
-comment) to one of four categories: EAC Core, Overhead, LIP Core, LIP Overhead. The ClickUp
-time entries endpoint doesn't return which space/folder a task belongs to, so
-`src/lib/clickup.ts` walks each configured space's Folder → List → Task hierarchy to build a
-task → category lookup, then classifies each time entry by the task it's logged against
-(`src/lib/sync.ts`). Renaming a space or folder in ClickUp is safe and needs no code change;
-adding a new space/folder does need an entry in `classification.ts`.
+comment) to one of four categories: EAC Core, Overhead, LIP Core, LIP Overhead. Despite the
+original build spec's note that the time-entries endpoint always returns a null
+`task_location`, that field is in fact populated on every entry that has a task (verified
+2026-08-28 against this workspace — 786/786 task-linked entries had it). `src/lib/sync.ts`
+classifies each entry directly from its `task_location.space_id`/`folder_id`, no separate
+task-hierarchy walk needed. Entries with no task at all (ad-hoc time tracking) or under a
+space/folder not in `classification.ts` are counted as unclassified and surfaced as sync
+warnings rather than silently dropped. Renaming a space or folder in ClickUp is safe and
+needs no code change; adding a new space/folder does need an entry in `classification.ts`.
 
 ## Deploying
 

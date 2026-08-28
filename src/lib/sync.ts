@@ -1,6 +1,6 @@
-import { buildTaskClassificationMap, getTimeEntries } from "./clickup";
+import { getTimeEntries } from "./clickup";
 import { getPool } from "./db";
-import type { Category } from "./classification";
+import { classifyLocation, type Category } from "./classification";
 
 const SYNC_WINDOW_MONTHS_BACK = 6;
 const SYNC_WINDOW_MONTHS_FORWARD = 1; // catches entries logged slightly ahead of "now"
@@ -10,7 +10,6 @@ function monthStart(date: Date): Date {
 }
 
 export type SyncResult = {
-  tasksScanned: number;
   entriesProcessed: number;
   unclassifiedEntries: number;
   hoursByMonth: Record<string, Record<string, number>>; // month (ISO date) -> category -> hours
@@ -19,8 +18,6 @@ export type SyncResult = {
 };
 
 export async function runSync(): Promise<SyncResult> {
-  const { taskCategory, warnings } = await buildTaskClassificationMap();
-
   const now = new Date();
   const start = monthStart(
     new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - SYNC_WINDOW_MONTHS_BACK, 1)),
@@ -31,14 +28,20 @@ export async function runSync(): Promise<SyncResult> {
 
   const entries = await getTimeEntries(start.getTime(), end.getTime());
 
-  const hoursByMonth = new Map<string, Map<Category | "unclassified", number>>();
+  const hoursByMonth = new Map<string, Map<Category, number>>();
   let unclassifiedEntries = 0;
+  const unclassifiedLocations = new Map<string, number>(); // "spaceId/folderId" -> count, for warnings
 
   for (const entry of entries) {
-    const taskId = entry.task?.id;
-    const category = taskId ? taskCategory.get(taskId) : undefined;
+    const tl = entry.task_location;
+    const category = classifyLocation(tl?.space_id, tl?.folder_id);
+
     if (!category) {
       unclassifiedEntries += 1;
+      if (tl?.space_id) {
+        const key = `${tl.space_id}/${tl.folder_id ?? ""}`;
+        unclassifiedLocations.set(key, (unclassifiedLocations.get(key) ?? 0) + 1);
+      }
       continue;
     }
 
@@ -50,6 +53,16 @@ export async function runSync(): Promise<SyncResult> {
     const monthMap = hoursByMonth.get(monthKey)!;
     monthMap.set(category, (monthMap.get(category) ?? 0) + durationHours);
   }
+
+  const warnings = Array.from(unclassifiedLocations.entries()).map(([key, count]) => {
+    const [spaceId, folderId] = key.split("/");
+    return {
+      kind: "unclassified_location",
+      detail: `${count} time entr${count === 1 ? "y" : "ies"} under space ${spaceId}${
+        folderId ? ` / folder ${folderId}` : ""
+      }, which isn't in classification.ts.`,
+    };
+  });
 
   const client = await getPool().connect();
   try {
@@ -79,7 +92,6 @@ export async function runSync(): Promise<SyncResult> {
   }
 
   return {
-    tasksScanned: taskCategory.size,
     entriesProcessed: entries.length,
     unclassifiedEntries,
     hoursByMonth: hoursByMonthPlain,

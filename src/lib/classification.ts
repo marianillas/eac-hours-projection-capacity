@@ -40,6 +40,19 @@ export const LIP_FOLDER_CLASSIFICATION: Record<string, Category> = {
   "90167996940": "lip_overhead", // LIP Marketing
 };
 
+/**
+ * Classifies a time entry by the space/folder its task lives in (from the entry's
+ * `task_location`). Returns null for a space/folder not covered by the maps above —
+ * callers should treat that as "unclassified" and surface it rather than drop it.
+ */
+export function classifyLocation(spaceId: string | null | undefined, folderId: string | null | undefined): Category | null {
+  if (!spaceId) return null;
+  if (spaceId === LIP_WORLD_SPACE_ID) {
+    return folderId ? (LIP_FOLDER_CLASSIFICATION[folderId] ?? null) : null;
+  }
+  return SPACE_CLASSIFICATION[spaceId] ?? null;
+}
+
 export const CATEGORY_LABEL: Record<Category, string> = {
   eac_core: "EAC Core",
   overhead: "Overhead",
