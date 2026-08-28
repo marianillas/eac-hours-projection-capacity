@@ -1,69 +1,166 @@
-import Image from "next/image";
+import {
+  getTeamMembers,
+  getClientBudgets,
+  getClickupHoursMonthly,
+  monthlyCapacityHours,
+  buildMonthRows,
+  rollingMonths,
+  type MonthRow,
+} from "@/lib/data";
+import { SyncButton } from "./sync-button";
 
-export default function Home() {
+// Reads live DB state on every request; nothing here is safe to prerender at build time.
+export const dynamic = "force-dynamic";
+
+function formatMonth(iso: string): string {
+  const [year, month] = iso.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-US", {
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function formatHours(n: number): string {
+  return n.toLocaleString("en-US", { maximumFractionDigits: 1, minimumFractionDigits: 0 });
+}
+
+const STATUS_STYLE: Record<MonthRow["status"], string> = {
+  OK: "bg-emerald-100 text-emerald-800",
+  TIGHT: "bg-amber-100 text-amber-800",
+  "OVER CAPACITY": "bg-red-100 text-red-800",
+};
+
+export default async function AtAGlancePage() {
+  const [members, clientBudgets, clickupHours] = await Promise.all([
+    getTeamMembers(),
+    getClientBudgets(),
+    getClickupHoursMonthly(),
+  ]);
+
+  const capacity = monthlyCapacityHours(members);
+  const months = rollingMonths({ back: 2, forward: 4 });
+  const rows = buildMonthRows(months, clientBudgets, clickupHours, capacity);
+
+  const lastSynced = clickupHours.reduce<string | null>((latest, h) => {
+    if (!latest || h.synced_at > latest) return h.synced_at;
+    return latest;
+  }, null);
+
+  const rowDefs: {
+    label: string;
+    render: (r: MonthRow) => React.ReactNode;
+    emphasize?: boolean;
+  }[] = [
+    {
+      label: "Client-Billable Hours",
+      render: (r) => (
+        <>
+          {formatHours(r.clientBillableHours)}
+          {r.clientBillableTbaCount > 0 && (
+            <span className="ml-1 text-xs text-amber-600">
+              (+{r.clientBillableTbaCount} TBA)
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      label: "Overhead Hours",
+      render: (r) => (r.hasClickupData ? formatHours(r.overheadHours) : "—"),
+    },
+    {
+      label: "LIP Hours",
+      render: (r) => (r.hasClickupData ? formatHours(r.lipHours) : "—"),
+    },
+    {
+      label: "Total Projected Demand",
+      render: (r) => formatHours(r.totalDemand),
+      emphasize: true,
+    },
+    {
+      label: "Team Capacity",
+      render: (r) => formatHours(r.capacity),
+    },
+    {
+      label: "Variance",
+      render: (r) => formatHours(r.variance),
+      emphasize: true,
+    },
+  ];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="mx-auto max-w-6xl px-6 py-8 space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">At a Glance</h1>
+          <p className="text-sm text-neutral-500">
+            {lastSynced
+              ? `Last synced ${new Date(lastSynced).toLocaleString()}`
+              : "Not synced yet — click Sync now to pull ClickUp hours."}
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+        <SyncButton />
+      </div>
+
+      <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="border-b border-neutral-200 bg-neutral-50">
+              <th className="text-left font-medium px-4 py-3 sticky left-0 bg-neutral-50">
+                &nbsp;
+              </th>
+              {rows.map((r) => (
+                <th key={r.month} className="text-right font-medium px-4 py-3 whitespace-nowrap">
+                  {formatMonth(r.month)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rowDefs.map((def) => (
+              <tr key={def.label} className="border-b border-neutral-100 last:border-0">
+                <td
+                  className={`px-4 py-2.5 sticky left-0 bg-white ${
+                    def.emphasize ? "font-semibold" : "text-neutral-600"
+                  }`}
+                >
+                  {def.label}
+                </td>
+                {rows.map((r) => (
+                  <td
+                    key={r.month}
+                    className={`px-4 py-2.5 text-right whitespace-nowrap ${
+                      def.emphasize ? "font-semibold" : ""
+                    }`}
+                  >
+                    {def.render(r)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+            <tr>
+              <td className="px-4 py-3 sticky left-0 bg-white font-semibold">Status</td>
+              {rows.map((r) => (
+                <td key={r.month} className="px-4 py-3 text-right">
+                  <span
+                    className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLE[r.status]}`}
+                  >
+                    {r.status}
+                  </span>
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p className="text-xs text-neutral-400">
+        Target: {(70).toFixed(0)}% core / {(30).toFixed(0)}% overhead ·{" "}
+        {formatHours(rows[0]?.coreTargetHours ?? 0)} core hrs / month,{" "}
+        {formatHours(rows[0]?.overheadTargetHours ?? 0)} overhead hrs / month at current capacity
+        — reference only, not a hard input.
+      </p>
     </div>
   );
 }

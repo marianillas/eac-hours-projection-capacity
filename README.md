@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# eac-hours-projection-capacity
 
-## Getting Started
+Standalone "At a Glance" app: Client-Billable + Overhead + LIP hours vs. team capacity, by
+month, live from ClickUp. Own repo, own ClickUp integration, own Postgres database — not
+connected to the ClickUp kanban board app or the eac-lip-utilization dashboard.
 
-First, run the development server:
+## Setup
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. Install dependencies:
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+   ```bash
+   npm install
+   ```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+2. Copy `.env.example` to `.env.local` and fill in:
+   - `CLICKUP_API_TOKEN` — a personal API token from ClickUp (Settings → Apps), created for
+     this app specifically.
+   - `POSTGRES_URL` — a Postgres connection string (Vercel Postgres, Neon, Supabase, or a
+     local instance).
+   - `CRON_SECRET` — any random string; must match what you set as an env var on Vercel so
+     the cron job can authenticate to `/api/cron/sync`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. Create the database tables:
 
-## Learn More
+   ```bash
+   npm run db:migrate
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+4. Run the dev server:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   ```bash
+   npm run dev
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+5. Add your team roster and client-billable budgets at `/settings`, then click **Sync now**
+   on the main page to pull Overhead/LIP hours from ClickUp.
 
-## Deploy on Vercel
+## How classification works
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+`src/lib/classification.ts` maps ClickUp space/folder **IDs** (never names — see the file's
+comment) to one of four categories: EAC Core, Overhead, LIP Core, LIP Overhead. The ClickUp
+time entries endpoint doesn't return which space/folder a task belongs to, so
+`src/lib/clickup.ts` walks each configured space's Folder → List → Task hierarchy to build a
+task → category lookup, then classifies each time entry by the task it's logged against
+(`src/lib/sync.ts`). Renaming a space or folder in ClickUp is safe and needs no code change;
+adding a new space/folder does need an entry in `classification.ts`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deploying
+
+This repo is deploy-ready for Vercel (`vercel.json` configures a cron job that hits
+`/api/cron/sync` every 6 hours). Set `CLICKUP_API_TOKEN`, `POSTGRES_URL`, and `CRON_SECRET`
+as environment variables on the Vercel project, then deploy with `vercel` or by connecting
+the repo in the Vercel dashboard.
