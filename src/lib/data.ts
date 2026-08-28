@@ -12,6 +12,7 @@ export type TeamMember = {
 export type ClientFolder = {
   folder_id: string;
   name: string;
+  active: boolean;
 };
 
 export type ClickupHourRow = {
@@ -49,7 +50,7 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
 }
 
 export async function getClientFolders(): Promise<ClientFolder[]> {
-  return query<ClientFolder>("SELECT folder_id, name FROM client_folders ORDER BY name");
+  return query<ClientFolder>("SELECT folder_id, name, active FROM client_folders ORDER BY name");
 }
 
 export async function getClickupHoursMonthly(): Promise<ClickupHourRow[]> {

@@ -1,17 +1,28 @@
 import { notFound } from "next/navigation";
 import { getClientFolders, getClientProjects, rollingMonths } from "@/lib/data";
 import { formatMonth, formatCurrency } from "@/lib/format";
-import { addProject, updateProject, removeProject, addTask, removeTask, updateTaskHours } from "@/lib/actions";
+import {
+  addProject,
+  updateProject,
+  removeProject,
+  addTask,
+  removeTask,
+  updateTaskHours,
+  setClientActive,
+} from "@/lib/actions";
 import { ClientSidebar } from "../client-sidebar";
 
 export const dynamic = "force-dynamic";
 
 export default async function ClientPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ folderId: string }>;
+  searchParams: Promise<{ showInactive?: string }>;
 }) {
   const { folderId } = await params;
+  const { showInactive } = await searchParams;
   const [clients, projects] = await Promise.all([getClientFolders(), getClientProjects(folderId)]);
 
   const client = clients.find((c) => c.folder_id === folderId);
@@ -21,15 +32,31 @@ export default async function ClientPage({
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8 flex gap-6">
-      <ClientSidebar clients={clients} activeFolderId={folderId} />
+      <ClientSidebar clients={clients} selectedFolderId={folderId} showInactive={showInactive === "1"} />
 
       <div className="flex-1 space-y-6 min-w-0">
-        <div>
-          <h1 className="text-xl font-semibold">{client.name}</h1>
-          <p className="text-sm text-neutral-500">
-            Per-task budget: hours are entered, dollars are computed from the project&apos;s
-            hourly rate.
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold">{client.name}</h1>
+            <p className="text-sm text-neutral-500">
+              Per-task budget: hours are entered, dollars are computed from the project&apos;s
+              hourly rate.
+            </p>
+          </div>
+          <form action={setClientActive}>
+            <input type="hidden" name="folder_id" value={folderId} />
+            <input type="hidden" name="active" value={(!client.active).toString()} />
+            <button
+              type="submit"
+              className={`rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap ${
+                client.active
+                  ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                  : "bg-neutral-200 text-neutral-600 hover:bg-neutral-300"
+              }`}
+            >
+              {client.active ? "Active" : "Inactive"} · click to mark {client.active ? "inactive" : "active"}
+            </button>
+          </form>
         </div>
 
         {projects.length === 0 && (

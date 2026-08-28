@@ -3,7 +3,12 @@ import { getClientFolders } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
-export default async function ClientsIndexPage() {
+export default async function ClientsIndexPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ showInactive?: string }>;
+}) {
+  const { showInactive } = await searchParams;
   const clients = await getClientFolders();
 
   if (clients.length === 0) {
@@ -18,5 +23,6 @@ export default async function ClientsIndexPage() {
     );
   }
 
-  redirect(`/clients/${clients[0].folder_id}`);
+  const first = clients.find((c) => c.active) ?? clients[0];
+  redirect(`/clients/${first.folder_id}${showInactive ? "?showInactive=1" : ""}`);
 }

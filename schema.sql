@@ -13,8 +13,11 @@ CREATE TABLE IF NOT EXISTS team_members (
 CREATE TABLE IF NOT EXISTS client_folders (
   folder_id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
+  active BOOLEAN NOT NULL DEFAULT true,
   synced_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE client_folders ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
 
 -- Superseded by client_projects/project_tasks/task_hours_monthly below (per-task budgets
 -- with an hourly rate instead of one flat monthly number per client).
