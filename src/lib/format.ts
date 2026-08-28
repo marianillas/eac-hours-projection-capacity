@@ -10,3 +10,7 @@ export function formatMonth(iso: string): string {
 export function formatHours(n: number): string {
   return n.toLocaleString("en-US", { maximumFractionDigits: 1, minimumFractionDigits: 0 });
 }
+
+export function formatCurrency(n: number): string {
+  return n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+}

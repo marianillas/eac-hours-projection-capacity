@@ -9,15 +9,6 @@ export type TeamMember = {
   active: boolean;
 };
 
-export type ClientBudget = {
-  id: number;
-  month: string; // ISO date
-  client_name: string;
-  client_folder_id: string | null;
-  hours: string;
-  status: "confirmed" | "tba";
-};
-
 export type ClientFolder = {
   folder_id: string;
   name: string;
@@ -32,15 +23,28 @@ export type ClickupHourRow = {
   synced_at: string;
 };
 
+export type ProjectTask = {
+  id: number;
+  project_id: number;
+  task_number: string;
+  name: string;
+  sort_order: number;
+  hoursByMonth: Record<string, number>; // month -> hours
+};
+
+export type ClientProject = {
+  id: number;
+  client_folder_id: string;
+  name: string;
+  hourly_rate: string;
+  notes: string;
+  sort_order: number;
+  tasks: ProjectTask[];
+};
+
 export async function getTeamMembers(): Promise<TeamMember[]> {
   return query<TeamMember>(
     "SELECT id, name, role, hours_per_week, active FROM team_members ORDER BY id",
-  );
-}
-
-export async function getClientBudgets(): Promise<ClientBudget[]> {
-  return query<ClientBudget>(
-    "SELECT id, month::text, client_name, client_folder_id, hours, status FROM client_budgets ORDER BY month, client_name",
   );
 }
 
@@ -54,6 +58,51 @@ export async function getClickupHoursMonthly(): Promise<ClickupHourRow[]> {
   );
 }
 
+export async function getClientProjects(folderId: string): Promise<ClientProject[]> {
+  const projects = await query<Omit<ClientProject, "tasks">>(
+    "SELECT id, client_folder_id, name, hourly_rate, notes, sort_order FROM client_projects WHERE client_folder_id = $1 ORDER BY sort_order, id",
+    [folderId],
+  );
+  if (projects.length === 0) return [];
+
+  const projectIds = projects.map((p) => p.id);
+  const tasks = await query<{ id: number; project_id: number; task_number: string; name: string; sort_order: number }>(
+    "SELECT id, project_id, task_number, name, sort_order FROM project_tasks WHERE project_id = ANY($1) ORDER BY sort_order, id",
+    [projectIds],
+  );
+
+  const taskIds = tasks.map((t) => t.id);
+  const hourRows = taskIds.length
+    ? await query<{ task_id: number; month: string; hours: string }>(
+        "SELECT task_id, month::text, hours FROM task_hours_monthly WHERE task_id = ANY($1)",
+        [taskIds],
+      )
+    : [];
+
+  const hoursByTask = new Map<number, Record<string, number>>();
+  for (const h of hourRows) {
+    if (!hoursByTask.has(h.task_id)) hoursByTask.set(h.task_id, {});
+    hoursByTask.get(h.task_id)![h.month] = Number(h.hours);
+  }
+
+  const tasksByProject = new Map<number, ProjectTask[]>();
+  for (const t of tasks) {
+    const task: ProjectTask = { ...t, hoursByMonth: hoursByTask.get(t.id) ?? {} };
+    if (!tasksByProject.has(t.project_id)) tasksByProject.set(t.project_id, []);
+    tasksByProject.get(t.project_id)!.push(task);
+  }
+
+  return projects.map((p) => ({ ...p, tasks: tasksByProject.get(p.id) ?? [] }));
+}
+
+/** Sum of budgeted task hours across every client/project, grouped by month. */
+export async function getClientBillableHoursByMonth(): Promise<Record<string, number>> {
+  const rows = await query<{ month: string; total_hours: string }>(
+    "SELECT month::text AS month, SUM(hours) AS total_hours FROM task_hours_monthly GROUP BY month",
+  );
+  return Object.fromEntries(rows.map((r) => [r.month, Number(r.total_hours)]));
+}
+
 export function monthlyCapacityHours(members: TeamMember[]): number {
   const weeklyTotal = members
     .filter((m) => m.active)
@@ -64,7 +113,6 @@ export function monthlyCapacityHours(members: TeamMember[]): number {
 export type MonthRow = {
   month: string; // ISO date, first of month
   clientBillableHours: number;
-  clientBillableTbaCount: number;
   overheadHours: number;
   lipHours: number;
   totalDemand: number;
@@ -84,16 +132,12 @@ export function statusFor(variance: number, capacity: number): MonthRow["status"
 
 export function buildMonthRows(
   months: string[], // ISO dates, first of month
-  clientBudgets: ClientBudget[],
+  clientBillableHoursByMonth: Record<string, number>,
   clickupHours: ClickupHourRow[],
   capacity: number,
 ): MonthRow[] {
   return months.map((month) => {
-    const budgetsForMonth = clientBudgets.filter((b) => b.month === month);
-    const clientBillableHours = budgetsForMonth
-      .filter((b) => b.status === "confirmed")
-      .reduce((sum, b) => sum + Number(b.hours), 0);
-    const clientBillableTbaCount = budgetsForMonth.filter((b) => b.status === "tba").length;
+    const clientBillableHours = clientBillableHoursByMonth[month] ?? 0;
 
     const clickupForMonth = clickupHours.filter((h) => h.month === month);
     const hasClickupData = clickupForMonth.length > 0;
@@ -110,7 +154,6 @@ export function buildMonthRows(
     return {
       month,
       clientBillableHours,
-      clientBillableTbaCount,
       overheadHours,
       lipHours,
       totalDemand,

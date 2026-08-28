@@ -16,22 +16,38 @@ CREATE TABLE IF NOT EXISTS client_folders (
   synced_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS client_budgets (
+-- Superseded by client_projects/project_tasks/task_hours_monthly below (per-task budgets
+-- with an hourly rate instead of one flat monthly number per client).
+DROP TABLE IF EXISTS client_budgets;
+
+CREATE TABLE IF NOT EXISTS client_projects (
   id SERIAL PRIMARY KEY,
-  month DATE NOT NULL, -- always the 1st of the month
-  client_name TEXT NOT NULL,
-  client_folder_id TEXT REFERENCES client_folders(folder_id),
-  hours NUMERIC NOT NULL DEFAULT 0,
-  status TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'tba')),
+  client_folder_id TEXT NOT NULL REFERENCES client_folders(folder_id),
+  name TEXT NOT NULL,
+  hourly_rate NUMERIC NOT NULL DEFAULT 0,
+  notes TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-ALTER TABLE client_budgets ADD COLUMN IF NOT EXISTS client_folder_id TEXT REFERENCES client_folders(folder_id);
+CREATE TABLE IF NOT EXISTS project_tasks (
+  id SERIAL PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES client_projects(id) ON DELETE CASCADE,
+  task_number TEXT NOT NULL DEFAULT '',
+  name TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
-CREATE INDEX IF NOT EXISTS client_budgets_month_idx ON client_budgets (month);
+CREATE TABLE IF NOT EXISTS task_hours_monthly (
+  task_id INTEGER NOT NULL REFERENCES project_tasks(id) ON DELETE CASCADE,
+  month DATE NOT NULL, -- always the 1st of the month
+  hours NUMERIC NOT NULL DEFAULT 0,
+  PRIMARY KEY (task_id, month)
+);
 
 -- Pure derived cache, fully repopulated by every sync — safe to drop and recreate when its
--- shape changes, unlike team_members/client_budgets which hold real user-entered data.
+-- shape changes, unlike team_members/client_projects which hold real user-entered data.
 DROP TABLE IF EXISTS clickup_hours_monthly;
 CREATE TABLE clickup_hours_monthly (
   month DATE NOT NULL, -- always the 1st of the month

@@ -7,8 +7,10 @@ dashboard. Five tabs:
 - **Summary** — Client-Billable + Overhead + LIP hours vs. team capacity, by month
 - **Admin** — Overhead hours broken down by org-level space (Finance, Marketing, etc.)
 - **LIP** — LIP World hours broken down by folder (LIP Core vs. LIP Overhead)
-- **Clients** — pick a client folder, see budgeted (blue) vs. actual ClickUp hours (black)
-- **Settings** — team roster and per-client monthly budgets
+- **Clients** — pick a client folder, manage that client's projects and per-task budgets:
+  hours entered per task per month, dollars computed from the project's hourly rate, plus
+  freeform notes
+- **Settings** — team roster
 
 ## Setup
 
@@ -38,8 +40,9 @@ dashboard. Five tabs:
    npm run dev
    ```
 
-5. Add your team roster and client-billable budgets at `/settings`, then click **Sync now**
-   on the main page to pull Overhead/LIP hours from ClickUp.
+5. Add your team roster at `/settings`, then click **Sync now** on the Summary tab to pull
+   Overhead/LIP hours (and the client folder list) from ClickUp. Client budgets are entered
+   per-client under the Clients tab, once client folders have synced at least once.
 
 ## How classification works
 

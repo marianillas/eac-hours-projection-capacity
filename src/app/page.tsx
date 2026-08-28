@@ -1,6 +1,6 @@
 import {
   getTeamMembers,
-  getClientBudgets,
+  getClientBillableHoursByMonth,
   getClickupHoursMonthly,
   monthlyCapacityHours,
   buildMonthRows,
@@ -20,15 +20,15 @@ const STATUS_STYLE: Record<MonthRow["status"], string> = {
 };
 
 export default async function SummaryPage() {
-  const [members, clientBudgets, clickupHours] = await Promise.all([
+  const [members, clientBillableHoursByMonth, clickupHours] = await Promise.all([
     getTeamMembers(),
-    getClientBudgets(),
+    getClientBillableHoursByMonth(),
     getClickupHoursMonthly(),
   ]);
 
   const capacity = monthlyCapacityHours(members);
   const months = rollingMonths({ back: 2, forward: 4 });
-  const rows = buildMonthRows(months, clientBudgets, clickupHours, capacity);
+  const rows = buildMonthRows(months, clientBillableHoursByMonth, clickupHours, capacity);
 
   const lastSynced = clickupHours.reduce<string | null>((latest, h) => {
     if (!latest || h.synced_at > latest) return h.synced_at;
@@ -42,16 +42,7 @@ export default async function SummaryPage() {
   }[] = [
     {
       label: "Client-Billable Hours",
-      render: (r) => (
-        <>
-          {formatHours(r.clientBillableHours)}
-          {r.clientBillableTbaCount > 0 && (
-            <span className="ml-1 text-xs text-amber-600">
-              (+{r.clientBillableTbaCount} TBA)
-            </span>
-          )}
-        </>
-      ),
+      render: (r) => formatHours(r.clientBillableHours),
     },
     {
       label: "Overhead Hours",
