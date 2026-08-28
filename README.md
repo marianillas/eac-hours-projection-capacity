@@ -51,6 +51,7 @@ needs no code change; adding a new space/folder does need an entry in `classific
 ## Deploying
 
 This repo is deploy-ready for Vercel (`vercel.json` configures a cron job that hits
-`/api/cron/sync` every 6 hours). Set `CLICKUP_API_TOKEN`, `POSTGRES_URL`, and `CRON_SECRET`
+`/api/cron/sync` daily at 7am UTC — Vercel's Hobby plan only allows daily cron jobs; bump
+the schedule in `vercel.json` if you're on Pro). Set `CLICKUP_API_TOKEN`, `POSTGRES_URL`, and `CRON_SECRET`
 as environment variables on the Vercel project, then deploy with `vercel` or by connecting
 the repo in the Vercel dashboard.
