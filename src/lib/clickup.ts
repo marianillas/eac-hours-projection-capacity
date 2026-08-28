@@ -16,16 +16,39 @@ function authHeaders() {
   return { Authorization: token };
 }
 
+const MAX_RATE_LIMIT_RETRIES = 6;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function clickupGet<T>(pathname: string, params: Record<string, string> = {}): Promise<T> {
   const url = new URL(`${API_BASE}${pathname}`);
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
 
-  const res = await fetch(url, { headers: authHeaders() });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`ClickUp API ${res.status} on ${pathname}: ${body}`);
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(url, { headers: authHeaders() });
+
+    if (res.status === 429) {
+      if (attempt >= MAX_RATE_LIMIT_RETRIES) {
+        throw new Error(`ClickUp API rate limit persisted after ${MAX_RATE_LIMIT_RETRIES} retries on ${pathname}`);
+      }
+      // ClickUp sends X-RateLimit-Reset as a unix timestamp (seconds) for when the window clears.
+      const resetHeader = res.headers.get("x-ratelimit-reset");
+      const resetAt = resetHeader ? Number(resetHeader) * 1000 : null;
+      const waitMs = resetAt
+        ? Math.max(resetAt - Date.now(), 1000)
+        : 2000 * 2 ** attempt; // exponential backoff fallback: 2s, 4s, 8s, ...
+      await sleep(Math.min(waitMs, 60_000));
+      continue;
+    }
+
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`ClickUp API ${res.status} on ${pathname}: ${body}`);
+    }
+    return res.json() as Promise<T>;
   }
-  return res.json() as Promise<T>;
 }
 
 type ClickUpFolder = { id: string; name: string };

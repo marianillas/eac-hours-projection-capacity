@@ -46,49 +46,51 @@ export default async function SettingsPage() {
             <tbody>
               {members.map((m) => (
                 <tr key={m.id} className="border-b border-neutral-100 last:border-0">
-                  <form action={updateTeamMember} className="contents">
-                    <input type="hidden" name="id" value={m.id} />
-                    <td className="px-4 py-2">
-                      <input
-                        name="name"
-                        defaultValue={m.name}
-                        className="w-full rounded border border-transparent px-2 py-1 hover:border-neutral-200 focus:border-neutral-300 focus:outline-none"
-                      />
-                    </td>
-                    <td className="px-4 py-2">
-                      <input
-                        name="role"
-                        defaultValue={m.role}
-                        className="w-full rounded border border-transparent px-2 py-1 hover:border-neutral-200 focus:border-neutral-300 focus:outline-none"
-                      />
-                    </td>
-                    <td className="px-4 py-2">
-                      <input
-                        name="hours_per_week"
-                        type="number"
-                        step="0.5"
-                        defaultValue={m.hours_per_week}
-                        className="w-20 rounded border border-transparent px-2 py-1 hover:border-neutral-200 focus:border-neutral-300 focus:outline-none"
-                      />
-                    </td>
-                    <td className="px-4 py-2">
-                      <input type="checkbox" name="active" defaultChecked={m.active} />
-                    </td>
-                    <td className="px-4 py-2 flex gap-2">
-                      <button
-                        type="submit"
-                        className="text-xs font-medium text-neutral-600 hover:underline"
-                      >
-                        Save
-                      </button>
-                    </td>
-                  </form>
-                  <td className="px-0">
-                    <form action={removeTeamMember}>
+                  {/* Inputs are associated with the standalone <form id={`team-${m.id}`}>
+                      rendered below via the `form` attribute, since a <form> can't wrap
+                      table cells directly (invalid HTML: <form> is not a valid child of <tr>). */}
+                  <td className="px-4 py-2">
+                    <input
+                      form={`team-${m.id}`}
+                      name="name"
+                      defaultValue={m.name}
+                      className="w-full rounded border border-transparent px-2 py-1 hover:border-neutral-200 focus:border-neutral-300 focus:outline-none"
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <input
+                      form={`team-${m.id}`}
+                      name="role"
+                      defaultValue={m.role}
+                      className="w-full rounded border border-transparent px-2 py-1 hover:border-neutral-200 focus:border-neutral-300 focus:outline-none"
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <input
+                      form={`team-${m.id}`}
+                      name="hours_per_week"
+                      type="number"
+                      step="0.5"
+                      defaultValue={m.hours_per_week}
+                      className="w-20 rounded border border-transparent px-2 py-1 hover:border-neutral-200 focus:border-neutral-300 focus:outline-none"
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <input form={`team-${m.id}`} type="checkbox" name="active" defaultChecked={m.active} />
+                  </td>
+                  <td className="px-4 py-2 flex gap-2">
+                    <button
+                      form={`team-${m.id}`}
+                      type="submit"
+                      className="text-xs font-medium text-neutral-600 hover:underline"
+                    >
+                      Save
+                    </button>
+                    <form action={removeTeamMember} className="contents">
                       <input type="hidden" name="id" value={m.id} />
                       <button
                         type="submit"
-                        className="px-2 text-xs font-medium text-red-600 hover:underline"
+                        className="text-xs font-medium text-red-600 hover:underline"
                       >
                         Remove
                       </button>
@@ -98,6 +100,11 @@ export default async function SettingsPage() {
               ))}
             </tbody>
           </table>
+          {members.map((m) => (
+            <form key={m.id} id={`team-${m.id}`} action={updateTeamMember}>
+              <input type="hidden" name="id" value={m.id} />
+            </form>
+          ))}
         </div>
 
         <form
