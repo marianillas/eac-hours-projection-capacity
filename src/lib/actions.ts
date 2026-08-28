@@ -65,16 +65,14 @@ function revalidateClient(folderId: string) {
   revalidateAllTabs();
 }
 
-export async function setClientActive(formData: FormData) {
-  const folderId = String(formData.get("folder_id") ?? "").trim();
+export async function setProjectActive(formData: FormData) {
+  const id = Number(formData.get("id"));
+  const clientFolderId = String(formData.get("client_folder_id") ?? "");
   const active = formData.get("active") === "true";
-  if (!folderId) return;
+  if (!id) return;
 
-  await getPool().query("UPDATE client_folders SET active = $1 WHERE folder_id = $2", [
-    active,
-    folderId,
-  ]);
-  revalidatePath("/clients", "layout");
+  await getPool().query("UPDATE client_projects SET active = $1 WHERE id = $2", [active, id]);
+  revalidateClient(clientFolderId);
 }
 
 export async function addProject(formData: FormData) {

@@ -12,7 +12,6 @@ export type TeamMember = {
 export type ClientFolder = {
   folder_id: string;
   name: string;
-  active: boolean;
 };
 
 export type ClickupHourRow = {
@@ -38,6 +37,7 @@ export type ClientProject = {
   client_folder_id: string;
   name: string;
   hourly_rate: string;
+  active: boolean;
   notes: string;
   sort_order: number;
   tasks: ProjectTask[];
@@ -50,7 +50,7 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
 }
 
 export async function getClientFolders(): Promise<ClientFolder[]> {
-  return query<ClientFolder>("SELECT folder_id, name, active FROM client_folders ORDER BY name");
+  return query<ClientFolder>("SELECT folder_id, name FROM client_folders ORDER BY name");
 }
 
 export async function getClickupHoursMonthly(): Promise<ClickupHourRow[]> {
@@ -61,7 +61,7 @@ export async function getClickupHoursMonthly(): Promise<ClickupHourRow[]> {
 
 export async function getClientProjects(folderId: string): Promise<ClientProject[]> {
   const projects = await query<Omit<ClientProject, "tasks">>(
-    "SELECT id, client_folder_id, name, hourly_rate, notes, sort_order FROM client_projects WHERE client_folder_id = $1 ORDER BY sort_order, id",
+    "SELECT id, client_folder_id, name, hourly_rate, active, notes, sort_order FROM client_projects WHERE client_folder_id = $1 ORDER BY sort_order, id",
     [folderId],
   );
   if (projects.length === 0) return [];

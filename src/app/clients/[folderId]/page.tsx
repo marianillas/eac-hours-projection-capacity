@@ -8,7 +8,7 @@ import {
   addTask,
   removeTask,
   updateTaskHours,
-  setClientActive,
+  setProjectActive,
 } from "@/lib/actions";
 import { ClientSidebar } from "../client-sidebar";
 
@@ -19,20 +19,23 @@ export default async function ClientPage({
   searchParams,
 }: {
   params: Promise<{ folderId: string }>;
-  searchParams: Promise<{ showInactive?: string }>;
+  searchParams: Promise<{ showInactiveProjects?: string }>;
 }) {
   const { folderId } = await params;
-  const { showInactive } = await searchParams;
-  const [clients, projects] = await Promise.all([getClientFolders(), getClientProjects(folderId)]);
+  const { showInactiveProjects } = await searchParams;
+  const showInactive = showInactiveProjects === "1";
+  const [clients, allProjects] = await Promise.all([getClientFolders(), getClientProjects(folderId)]);
 
   const client = clients.find((c) => c.folder_id === folderId);
   if (!client) notFound();
 
   const months = rollingMonths({ back: 2, forward: 4 });
+  const inactiveCount = allProjects.filter((p) => !p.active).length;
+  const projects = showInactive ? allProjects : allProjects.filter((p) => p.active);
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8 flex gap-6">
-      <ClientSidebar clients={clients} selectedFolderId={folderId} showInactive={showInactive === "1"} />
+      <ClientSidebar clients={clients} selectedFolderId={folderId} />
 
       <div className="flex-1 space-y-6 min-w-0">
         <div className="flex items-start justify-between gap-4">
@@ -43,23 +46,17 @@ export default async function ClientPage({
               hourly rate.
             </p>
           </div>
-          <form action={setClientActive}>
-            <input type="hidden" name="folder_id" value={folderId} />
-            <input type="hidden" name="active" value={(!client.active).toString()} />
-            <button
-              type="submit"
-              className={`rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap ${
-                client.active
-                  ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                  : "bg-neutral-200 text-neutral-600 hover:bg-neutral-300"
-              }`}
+          {inactiveCount > 0 && (
+            <a
+              href={showInactive ? `/clients/${folderId}` : `/clients/${folderId}?showInactiveProjects=1`}
+              className="whitespace-nowrap text-xs text-neutral-500 hover:underline"
             >
-              {client.active ? "Active" : "Inactive"} · click to mark {client.active ? "inactive" : "active"}
-            </button>
-          </form>
+              {showInactive ? "Hide inactive projects" : `Show inactive projects (${inactiveCount})`}
+            </a>
+          )}
         </div>
 
-        {projects.length === 0 && (
+        {allProjects.length === 0 && (
           <p className="text-sm text-neutral-400 italic">No projects yet — add one below.</p>
         )}
 
@@ -108,13 +105,31 @@ export default async function ClientPage({
                     Save
                   </button>
                 </div>
-                <form action={removeProject}>
-                  <input type="hidden" name="id" value={project.id} />
-                  <input type="hidden" name="client_folder_id" value={folderId} />
-                  <button type="submit" className="text-xs font-medium text-red-600 hover:underline">
-                    Remove project
-                  </button>
-                </form>
+                <div className="flex items-center gap-3">
+                  <form action={setProjectActive}>
+                    <input type="hidden" name="id" value={project.id} />
+                    <input type="hidden" name="client_folder_id" value={folderId} />
+                    <input type="hidden" name="active" value={(!project.active).toString()} />
+                    <button
+                      type="submit"
+                      className={`rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap ${
+                        project.active
+                          ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                          : "bg-neutral-200 text-neutral-600 hover:bg-neutral-300"
+                      }`}
+                    >
+                      {project.active ? "Active" : "Inactive"} · click to mark{" "}
+                      {project.active ? "inactive" : "active"}
+                    </button>
+                  </form>
+                  <form action={removeProject}>
+                    <input type="hidden" name="id" value={project.id} />
+                    <input type="hidden" name="client_folder_id" value={folderId} />
+                    <button type="submit" className="text-xs font-medium text-red-600 hover:underline">
+                      Remove project
+                    </button>
+                  </form>
+                </div>
               </div>
 
               <div className="overflow-x-auto rounded border border-neutral-200">

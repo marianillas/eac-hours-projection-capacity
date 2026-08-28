@@ -13,11 +13,12 @@ CREATE TABLE IF NOT EXISTS team_members (
 CREATE TABLE IF NOT EXISTS client_folders (
   folder_id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  active BOOLEAN NOT NULL DEFAULT true,
   synced_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-ALTER TABLE client_folders ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
+-- active belongs on the project, not the client — a client can have some active and some
+-- completed/on-hold projects at once (see git history for the short-lived client-level flag).
+ALTER TABLE client_folders DROP COLUMN IF EXISTS active;
 
 -- Superseded by client_projects/project_tasks/task_hours_monthly below (per-task budgets
 -- with an hourly rate instead of one flat monthly number per client).
@@ -28,10 +29,13 @@ CREATE TABLE IF NOT EXISTS client_projects (
   client_folder_id TEXT NOT NULL REFERENCES client_folders(folder_id),
   name TEXT NOT NULL,
   hourly_rate NUMERIC NOT NULL DEFAULT 0,
+  active BOOLEAN NOT NULL DEFAULT true,
   notes TEXT NOT NULL DEFAULT '',
   sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE client_projects ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
 
 CREATE TABLE IF NOT EXISTS project_tasks (
   id SERIAL PRIMARY KEY,
